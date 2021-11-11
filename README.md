@@ -1,2 +1,2 @@
 # WhatIsIntelligence
-Using Zipf and Entropy to dig deeper into the question: what is entropy?
+Using Zipf and Entropy to dig deeper into the question: what is intelligence?
