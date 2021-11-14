@@ -97,8 +97,7 @@ ggdata <- ggdata %>%
   mutate(my_label=paste0(round(slope,2)," slope, ",round(r2,2)," r2, ",round(abs_difference,2)," abs error")) %>%  
   arrange(abs_difference)
                   
-# plot of zipfness
-# make a plot
+# plot of relative zipfness
 ggplot(ggdata,aes(x=reorder(source,-abs_difference), y=slope, fill=source, label=my_label)) +
   geom_bar(stat="identity", color="black") +
   ggtitle("Zipf Slopes, Top 100 Words") +
