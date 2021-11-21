@@ -26,11 +26,11 @@ res[[3]]
 #########################################################################
 # animate our Zipf bar plot
 source("_shared_functions.R") 
-res = plot_animated_zipf_bar_plot(my_data, seq(2,77), c("Lorem Ipsum"="#F8766D",
+res1 = plot_animated_zipf_bar_plot(my_data, seq(3,75, 3), c("Lorem Ipsum"="#F8766D",
                                                            "Don Quijote"="#B79F00",
                                                            "Tale of Two Cities"="#00BA38",
                                                            "Moby Dick"="#00BFC4",
                                                            "Tom Sawyer"="#619CFF",
                                                            "Call of the Wild"="#C77CFF"))   
-res
+res1 
 anim_save("animated_zipf_bar_plot.gif")

@@ -9,6 +9,61 @@ library(stringr)
 library(tictoc)
 library(tidyr)
 library(transformr)
+library(zoo)
+
+#########################################################################
+# load a single dataframe
+get_dataframe <- function(item, folder="data") {
+  tmp <- readRDS(paste0(folder,"/",item,".Rds")) 
+  return(tmp)
+}
+
+#########################################################################
+# load up all the needed Rds files as a combined dataframe
+get_combined_dataframe <- function(sources, folder="data") {
+  combined_data <- data.frame()
+  for(item in sources) {
+    print(item)
+    print(folder)
+    tmp <- get_dataframe(item, folder)
+    combined_data <- rbind(combined_data,tmp)
+  }
+  return(combined_data)
+}
+
+#########################################################################
+# function to make ngrams
+get_ngrams <- function(data, n) {
+  ngrams <- data %>%
+    mutate(
+      ngram=sapply(
+        1:nrow(.),
+        function(x) paste(symbol[pmax(1, x):pmin(x + n-1, nrow(.))], collapse = "")
+      ))
+}  
+
+
+#########################################################################
+# function to calculate entropies for a window of orders (e.g. 0-100)
+calculate_higher_order_entropies <- function(input, starting_n, ending_n) {
+  
+  # doesn't make sense
+  if(starting_n > ending_n) {return(NULL)}
+  
+  # hold all of our results
+  entropy_results <- data.frame()  
+  
+  # loop-de-loop
+  n <- starting_n
+  while(n <= ending_n) {
+    entropy_results <- rbind(entropy_results, calculate_entropy(input, n))    
+    n <- n+1
+  }
+  
+  # all done
+  return(entropy_results)
+}
+
 
 #########################################################################
 # function to calculate entropy at each order (n)
@@ -19,8 +74,18 @@ calculate_entropy <- function(data, n) {
   msg <- paste0(max(data$source)," for n=",n)
   print(msg)
   
-  # 0th-order uses Shanon's Entropy
+  # 1st-order uses Shanon's Entropy
   if(n==0) {
+    probs <- data %>%
+      group_by(symbol) %>%
+      summarise(freq=n()) 
+      entropy <- log2(nrow(probs))
+    toc()
+    return(data.frame(source=max(data$source), n=n, entropy=entropy))
+  }
+  
+  # 1st-order uses Shanon's Entropy
+  if(n==1) {
     probs <- data %>%
       group_by(symbol) %>%
       summarise(freq=n()) %>%
@@ -34,7 +99,7 @@ calculate_entropy <- function(data, n) {
   }
   
   # nth-order uses Conditional Entropy
-  if(n > 0) {
+  if(n > 1) {
     # Stamp gives us the the formula
     # P(abc) log(P(c | ab))
     # example: for n = 1 we want P(ab)*log(P(b|a)) => p_ngram * log2(p_b_given_a)
@@ -96,38 +161,6 @@ calculate_entropy <- function(data, n) {
 }
 
 
-#########################################################################
-# function to calculate entropies for a window of orders (e.g. 0-100)
-calculate_higher_order_entropies <- function(input, starting_n, ending_n) {
-  
-  # doesn't make sense
-  if(starting_n > ending_n) {return(NULL)}
-  
-  # hold all of our results
-  entropy_results <- data.frame()  
-  
-  # loop-de-loop
-  n <- starting_n
-  while(n <= ending_n) {
-    entropy_results <- rbind(entropy_results, calculate_entropy(input, n))    
-    n <- n+1
-  }
-  
-  # all done
-  return(entropy_results)
-}
-
-
-#########################################################################
-# function to calculate entropy at each order (n)
-get_combined_dataframe <- function(sources) {
-  combined_data <- data.frame()
-  for(item in sources) {
-    tmp <- readRDS(paste0("data/",item,".Rds")) 
-    combined_data <- rbind(combined_data,tmp)
-  }
-  return(combined_data)
-}
 
 #########################################################################
 # returns a list of [scatter plot, bar plot, table for bar plot]
@@ -167,6 +200,7 @@ run_zipf_analysis <- function(data, max_rank, color_key) {
     facet_wrap(vars(source)) +
     scale_colour_manual(name=" ",
                         values = color_key)
+  
   p1_ggdata <- zipf_results %>%
     mutate(max_rank=max_rank)
   
@@ -223,105 +257,77 @@ plot_entropy_results <- function(data, color_key, hide_legend=FALSE) {
   return(p1)
 }
 
+
+
 #########################################################################
-# plot an animated zipf bar plot
-plot_animated_zipf_bar_plot <- function(data, sequence, color_key) {
+# get our summary stats
+get_summary_stats <- function(my_data) {
+  # get summary stats
+  summary_stats <- my_data %>%
+    group_by(source) %>%
+    summarise(`Total Tokens`=n(),
+              `Unique Tokens`=length(unique(symbol))) %>%
+    mutate(Source=source,
+           Tokenized="by symbol") %>%
+    select(Source, Tokenized, `Total Tokens`, `Unique Tokens`) %>%
+    mutate(`Hartley Bits per Token`=round(log2(`Unique Tokens`),2)) %>%
+    mutate(`Total Information (Hartley Bits)`=`Hartley Bits per Token`*`Total Tokens`) %>%
+    mutate(`Total Tokens`=formatC(`Total Tokens`, big.mark=",")) %>%
+    mutate(`Total Information (Hartley Bits)`=format(`Total Information (Hartley Bits)`, big.mark=",",scientific=F))
+  return(summary_stats)
+}
+
+
+#######################################################################
+# 3rd condition: 0th to 5th order entropy linearity
+# returns list: [all slopes, ]
+analyze_third_condition <- function(entropy_data, color_key) {
   
-  # run analysis for desired range of max_rank
-  zipf_bar_data <- data.frame()
-  for(i in sequence) {
-    res = run_zipf_analysis(my_data, i, color_key)
-    zipf_bar_data <- rbind(zipf_bar_data,res[[4]])
+  # look at first 5 orders only
+  input_data <- entropy_data %>% 
+    mutate(log10_entropy=log10(entropy)) %>%
+    filter(n <= 5)
+  
+  # hold our results
+  data.window <- data.frame()
+  
+  # cycle through all sources
+  for(item in unique(input_data$source)) {
+    print(item)
+    
+    # window through the first 5 slopes
+    for(i in seq(0,4,1)) {
+      window <- input_data %>%
+        filter(source==item) %>%
+        filter(n >= i) %>%
+        filter(n <= i+1)  
+      
+      # get slope via linear regression (only 2 points, perfect regression)
+      model <- lm(data=window, log10_entropy~n)
+      data.window <- rbind(data.window, data.frame(source=item, iteration=i, slope=model$coefficients[2]))
+    }
   }
-
-  # make pretty label
-  res1 <- zipf_bar_data %>%
-    group_by(max_rank) %>%
-    mutate(Rank=rank(desc(abs_difference))) %>%
-    ungroup() %>%
-    mutate(new_label=paste0(source,": ",round(slope,2)))
-
-  # make our animated plot
-  p2 <- ggplot(res1) +
-    geom_col(aes(x=Rank, y=slope,
-                 group=source, fill=source),
-             color="black",
-             width=0.4) +
-    geom_text(aes(x=Rank, y=0,
-                  label=new_label, group=source),
-              hjust=1.25) +
-    geom_hline(yintercept=-1, lty=2) +
-    theme_minimal() + ylab('Zipf slope') +
-    theme(axis.title.y = element_blank(),
-          axis.text.y = element_blank(),
-          axis.ticks.y = element_blank(),
-          legend.position="none",
-          plot.margin = unit(c(2,2,2,2),
-                             'lines')) +
+  out1 <- data.window
+  
+  
+  # look at average slope and variance for each source
+  summary <- data.window %>%
+    group_by(source) %>%
+    summarise(avg_slope=mean(slope),
+              variance=var(slope))
+  out2 <- summary 
+  
+  # plot the rank by entropy
+  p1 <- ggplot(out2, aes(x=reorder(source,-variance), y=variance, fill=source)) +
+    geom_bar(stat="identity", color="black") +
+    theme_bw() +
     scale_fill_manual(name=" ",
                       values = color_key) +
-    coord_flip(clip='off') + 
-    ggtitle('Zipf Slopes: Top {closest_state} Symbols') +             # title with the timestamp period
-    transition_states(max_rank,
-                      transition_length = 2,
-                      state_length = 0) +
-    exit_fly(x_loc = 0, y_loc = 0) +         # chart exit animation params
-    enter_fly(x_loc = 0, y_loc = 0) +
-    ease_aes('cubic-in-out') 
-  return(p2)
-}
-
-
-#########################################################################
-# plot an animated zipf line plot
-plot_animated_zipf_line_plot <- function(data, sequence, color_key) {
-  
-  # run analysis for desired range of max_rank
-  zipf_line_data <- data.frame()
-  for(i in sequence) {
-    res = run_zipf_analysis(my_data, i, color_key)
-    zipf_line_data <- rbind(zipf_line_data,res[[5]])
-  }
-  
-  # avg intercept
-  tmp <- zipf_line_data %>%
-    filter(rank==1)
-  avg_intercepts = mean(tmp$log_freq)
-  
-  # make a plot of Zipf Slopes
-  p1 <- ggplot(zipf_line_data,aes(x=log_rank, y=log_freq, color=source)) +
-    geom_point() +
-    labs(x="log10 Rank", y="log10 Frequency") +
-    geom_smooth(method="lm", se=FALSE) +
-    geom_abline(slope=-1,intercept=avg_intercepts, color="black", lty=2) +
-    theme_bw() +
     theme(legend.position="none") +
-    facet_wrap(vars(source)) +
-    scale_colour_manual(name=" ",
-                        values = color_key) +
-    transition_states(max_rank, 
-                      transition_length = 2, 
-                      state_length = 1) +
-    ease_aes('cubic-in-out') 
-    ggtitle('Zipf Slopes: Top {closest_state} Tokens')
-  return(p1)
-}
-
-
-
-#########################################################################
-# function to explore entropy and see what is going on 
-explore_entropy <- function(data, n) {
+    coord_flip() +
+    labs(x=" ", y="Slope Variance") +
+    ggtitle("0th to 5th-Order log10 Entropy")   
   
-  # break into ngrams of length n
-  ngrams <- data %>%
-    mutate(
-      ngram=sapply(
-        1:nrow(.),
-        function(x) paste(symbol[pmax(1, x):pmin(x + n, nrow(.))], collapse = "")
-      ),
-      length=str_length(ngram),
-      A = substr(ngram, 1, n),
-      B = substr(ngram, n+1, length(ngram)))
-  return(ngrams)
+  # return list of output
+  return(list(out1, out2, p1))
 }
