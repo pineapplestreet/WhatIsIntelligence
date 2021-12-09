@@ -59,15 +59,9 @@ raw_text_to_dataframe <- function(path_to_txt_file, source, reverse=FALSE) {
 original = raw_text_to_dataframe("data/the_call_of_the_wild.txt", "Call of the Wild")
 saveRDS(original,"data2/original.Rds")
 
-models <- c("LSTM-1",
-            "LSTM-10",
-            "LSTM-20",
-            "LSTM-30",
-            "LSTM-40",
-            "LSTM-50",
-            "LSTM-100",
-            "LSTM-1000",
-            "LSTM-Overfit")
+models <- c("GPT-NEO-1.3B",
+            "GPT-NEO-2.7B",
+            "GPT-J-6B")
 for(m in models) {
   print(m)
   data = raw_text_to_dataframe(paste0("data/",m,".txt"), m)
