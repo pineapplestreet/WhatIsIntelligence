@@ -89,9 +89,14 @@ plot3 <- plot_condition2(entropy_data %>% filter(n < 30),map_colors)
 grid.arrange(plot2,plot3,widths = c(2, 3), nrow=1)
 
 # checking long-tail entropy
-# break into ngrams of length n
 check <- entropy_data %>% filter(source=="LSTM-50")
-ngrams <- data %>%
+my_data <- get_combined_dataframe(sources=c(
+  "LSTM-Overfit"), 
+  folder="data2")
+
+# break into ngrams of length n
+n = 100
+ngrams <- my_data %>%
   mutate(
     ngram=sapply(
       1:nrow(.),
@@ -100,7 +105,10 @@ ngrams <- data %>%
     length=str_length(ngram),
     A = substr(ngram, 1, n),
     B = substr(ngram, n+1, length(ngram))) %>%
-  filter(length > n)
+  filter(length > n) %>%
+  group_by(ngram) %>%
+  summarise(count=n()) %>%
+  arrange(desc(count))
 
 
 #########################################################################
