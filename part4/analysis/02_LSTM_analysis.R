@@ -84,10 +84,23 @@ folder="data3")
 plot <- plot_condition2(entropy_data,map_colors)
 plot
 
-
 plot2 <- plot_condition2(entropy_data %>% filter(n < 6),map_colors, TRUE)
 plot3 <- plot_condition2(entropy_data %>% filter(n < 30),map_colors)
 grid.arrange(plot2,plot3,widths = c(2, 3), nrow=1)
+
+# checking long-tail entropy
+# break into ngrams of length n
+check <- entropy_data %>% filter(source=="LSTM-50")
+ngrams <- data %>%
+  mutate(
+    ngram=sapply(
+      1:nrow(.),
+      function(x) paste(symbol[pmax(1, x):pmin(x + n, nrow(.))], collapse = "")
+    ),
+    length=str_length(ngram),
+    A = substr(ngram, 1, n),
+    B = substr(ngram, n+1, length(ngram))) %>%
+  filter(length > n)
 
 
 #########################################################################
