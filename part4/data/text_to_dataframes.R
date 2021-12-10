@@ -67,3 +67,24 @@ for(m in models) {
   data = raw_text_to_dataframe(paste0("data/",m,".txt"), m)
   saveRDS(data,paste0("data2/",m,".Rds"))
 }
+
+
+# reload our old books
+data = raw_text_to_dataframe("data/a_tale_of_two_cities.txt","Tale of two Cities")
+saveRDS(data,paste0("data2/Tale of two Cities.Rds"))
+
+# reload our old books
+data = raw_text_to_dataframe("data/don_quijote_part1.txt","Don Quijote")
+saveRDS(data,paste0("data2/Don Quijote.Rds"))
+
+# reload our old books
+data = raw_text_to_dataframe("data/lorem_ipsum.txt","Lorem Ipsum")
+saveRDS(data,paste0("data2/Lorem Ipsum.Rds"))
+
+# reload our old books
+data = raw_text_to_dataframe("data/moby_dick.txt","Moby Dick")
+saveRDS(data,paste0("data2/Moby Dick.Rds"))
+
+# reload our old books
+data = raw_text_to_dataframe("data/the_adventures_of_tom_sawyer.txt","Tom Sawyer")
+saveRDS(data,paste0("data2/Tom Sawyer.Rds"))

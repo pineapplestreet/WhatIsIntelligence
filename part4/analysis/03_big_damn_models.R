@@ -21,7 +21,8 @@ ggplot(df.models, aes(x=reorder(Model,-Parameters), y=Parameters, fill=Model, la
   theme(legend.position = "none") +
   scale_fill_manual(name=" ",
                       values = c(
-                        "LSTM-1000"="#B4DE2C",
-                        "Loss"="#ed0c0c",
-                        "Validation Loss"="#ed800c"))
+                        "GPT-NEO-1.3B"="#945319",
+                        "GPT-NEO-2.7B"="#cc6910",
+                        "GPT-J-6B"="#fc9803",
+                        "LSTM-1000"="#B4DE2C"))
   

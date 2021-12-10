@@ -5,29 +5,49 @@ source("../_global_shared_functions.R")
 #########################################################################
 # get all of the data of interest
 my_data <- get_combined_dataframe(sources=c(
+  "Original",
+  "LSTM-Overfit",
+  "LSTM-1",
+  "LSTM-1000",
   "GPT-NEO-1.3B",
   "GPT-NEO-2.7B",
-  "GPT-J-6B"), 
+  "GPT-J-6B",
+  "Tom Sawyer",
+  "Don Quijote",
+  "Moby Dick",
+  "Lorem Ipsum",
+  "Tale of two Cities"), 
   folder="data2")
 
 # order factor
 my_data$source <- factor(my_data$source, levels=c(
+  "LSTM-1",
+  "LSTM-1000",
+  "LSTM-Overfit",    
   "GPT-NEO-1.3B",
   "GPT-NEO-2.7B",
-  "GPT-J-6B"))
+  "GPT-J-6B",  
+  "Call of the Wild",  
+  "Don Quijote",
+  "Lorem Ipsum",
+  "Moby Dick",
+  "Tale of two Cities",
+  "Tom Sawyer"))
 
 # map colors
 map_colors <- c(
-  "LSTM-Overfit"="#FDE725",
+  "LSTM-1"="#482878",
   "LSTM-1000"="#B4DE2C",
-  "LSTM-100"="#6DCD59",
-  "LSTM-50"="#35B779",
-  "LSTM-40"="#1F9E89",
-  "LSTM-30"="#26828E",
-  "LSTM-20"="#31688E",
-  "LSTM-10"="#3E4A89",
-  "LSTM-1"="#482878",  
-  "Call of the Wild"="#C77CFF"
+  "LSTM-Overfit"="#FDE725",  
+  "GPT-NEO-1.3B"="#945319",
+  "GPT-NEO-2.7B"="#cc6910",
+  "GPT-J-6B"="#fc9803",
+  "Call of the Wild"="#C77CFF",  
+  "Don Quijote"="#B79F00",
+  "Lorem Ipsum"="#F8766D",  
+  "Moby Dick"="#00BFC4",
+  "Tale of two Cities"="#00BA38",  
+  "Tom Sawyer"="#619CFF"
 )
 
 #########################################################################
@@ -43,31 +63,74 @@ summary_stats <- get_summary_stats(my_data) %>% arrange(`Unique Tokens`)
 cond1 = run_condition1_analysis(my_data, 0, map_colors)
 grid.arrange(cond1[[1]],cond1[[2]],widths = c(3, 2), nrow=1)
 
-#########################################################################
-# calculate higher-order entropy
-for(my_source in unique(my_data$source)) {
-  print(my_source)
-  tmp = my_data %>% filter(source==my_source)
-  results = calculate_higher_order_entropies(tmp,0,100)
-  saveRDS(results,paste0("data3/entropy_",my_source,".Rds"))
-}
+# 
+# #########################################################################
+# # calculate higher-order entropy
+# my_data_eval <- my_data %>% filter(source %in% c(
+#   "Tom Sawyer",
+#   "Moby Dick",
+#   "Lorem Ipsum",
+#   "Don Quijote",
+#   "Tale of two Cities")) 
+# for(my_source in unique(my_data_eval$source)) {
+#   print(my_source)
+#   tmp = my_data %>% filter(source==my_source)
+#   results = calculate_higher_order_entropies(tmp,0,100)
+#   saveRDS(results,paste0("data3/entropy_",my_source,".Rds"))
+# }
 
 #########################################################################
 # Condition #2
 entropy_data <- get_combined_dataframe(sources=c(
-  "entropy_LSTM-1",
-  "entropy_LSTM-10",
-  "entropy_LSTM-20",
-  "entropy_LSTM-30",
-  "entropy_LSTM-40",
-  "entropy_LSTM-50",
-  "entropy_LSTM-100",
-  "entropy_LSTM-1000",
   "entropy_LSTM-Overfit",
-  "entropy_Call of the Wild"
+  "entropy_LSTM-1000",
+  "entropy_LSTM-1",
+  "entropy_GPT-NEO-1.3B",
+  "entropy_GPT-NEO-2.7B",
+  "entropy_GPT-J-6B",
+  "entropy_Call of the Wild",
+  "entropy_Tom Sawyer",
+  "entropy_Don Quijote",
+  "entropy_Moby Dick",
+  "entropy_Lorem Ipsum",
+  "entropy_Tale of two Cities"
 ), 
 folder="data3") 
-plot <- plot_condition2(entropy_data,map_colors)
+
+entropy_data$source <- factor(entropy_data$source, levels=c(
+  "LSTM-1",
+  "LSTM-1000",
+  "LSTM-Overfit",    
+  "GPT-NEO-1.3B",
+  "GPT-NEO-2.7B",
+  "GPT-J-6B",  
+  "Call of the Wild",  
+  "Don Quijote",
+  "Lorem Ipsum",
+  "Moby Dick",
+  "Tale of two Cities",
+  "Tom Sawyer"))
+
+plot <- plot_condition2(entropy_data %>% filter(n<40),map_colors)# + facet_wrap(vars(source), ncol=3) + theme(legend.position="none")
+plot
+
+tmp_map_colors <- c(
+  "Call of the Wild"="#C77CFF",
+  "LSTM-Overfit"="#FDE725",
+  "LSTM-1000"="#B4DE2C",
+  "GPT-NEO-1.3B"="#945319",
+  "GPT-NEO-2.7B"="#cc6910",
+  "GPT-J-6B"="#fc9803"
+)
+tmp <- entropy_data %>%
+  filter(source %in% c("Call of the Wild",
+                       "LSTM-Overfit",
+                       "LSTM-1000",
+                       "GPT-NEO-1.3B",
+                       "GPT-NEO-2.7B",
+                       "GPT-J-6B")) %>%
+  filter(n < 50)
+plot <- plot_condition2(tmp,tmp_map_colors) 
 plot
 
 plot2 <- plot_condition2(entropy_data %>% filter(n < 6),map_colors, TRUE)
@@ -96,6 +159,25 @@ ngrams <- my_data %>%
   summarise(count=n()) %>%
   arrange(desc(count))
 
+# find our max nth order entropy
+max_order_entropy <- entropy_data %>%
+  filter(entropy > 0) %>%
+  group_by(source) %>%
+  summarise(max_n=max(n))
+
+plot_special <- ggplot(max_order_entropy, aes(x=reorder(source,max_n), y=max_n, fill=source, label=max_n)) +
+  geom_bar(stat="identity", color="black") +
+  scale_fill_manual(name=" ",
+                      values = map_colors) +
+  ggtitle("Maximum nth-Order Entropy") +
+  labs(x=" ", y="Max n") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.position = "none") +
+  #geom_text(hjust=2, size=3) +
+  geom_text(vjust=2, size=3) 
+  #coord_flip()
+plot_special
 
 #########################################################################
 # Condition #3
@@ -105,150 +187,45 @@ grid.arrange(plot2,cond3[[3]],widths = c(2, 3), nrow=1)
 
 
 #########################################################################
-#########################################################################
-#########################################################################
-#########################################################################
-# digging into correlation
+# summarized
 
-# dataframe of training loss
-df.loss <- data.frame(Model="LSTM-1", Mode="Loss", Value=3.7427)
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-1", Mode="Validation Loss", Value=3.7219))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-10", Mode="Loss", Value=3.2670))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-10", Mode="Validation Loss", Value=3.2565))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-20", Mode="Loss", Value=2.7291))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-20", Mode="Validation Loss", Value=2.6907))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-30", Mode="Loss", Value=2.4966))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-30", Mode="Validation Loss", Value=2.4593))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-40", Mode="Loss", Value=2.3612))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-40", Mode="Validation Loss", Value=2.3402))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-50", Mode="Loss", Value=2.2741))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-50", Mode="Validation Loss", Value=2.2444))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-100", Mode="Loss", Value=2.0395))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-100", Mode="Validation Loss", Value=2.0437))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-1000", Mode="Loss", Value=1.6553))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-1000", Mode="Validation Loss", Value=1.9250))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-Overfit", Mode="Loss", Value=0.0669))
-df.loss <- rbind(df.loss,data.frame(Model="LSTM-Overfit", Mode="Validation Loss", Value=3.8998))
-df.loss.wide <- df.loss %>% 
-  mutate(source=Model) %>%
-  select(source, Mode, Value) %>%
-  spread(Mode, Value)
-
-#########################################################################
-# Correlation?
-combined_results <- cond1[[3]] %>%
-  mutate(`Zipf Slope`=slope) %>%
-  select(source, `Zipf Slope`) %>%
-  left_join(
-    cond3[[2]] %>%
-      mutate(`Entropy Slope Variance`=variance) %>%
-      select(source, `Entropy Slope Variance`)
-  ) %>%
-  left_join(df.loss.wide) %>%
-  filter(!source %in% c("LSTM-Overfit","Call of the Wild"))
-
-# corr w/ p-values
-res2 <- rcorr(as.matrix(combined_results %>% select(-source)), type="pearson")
-res2$r
-res2$P
-
-corrplot(res2$r, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45)
-
-# format for ggplot
-item1 = c("Zipf Slope","Entropy Slope Variance","Loss","Validation Loss")
-ggdata = data.frame(item1="Zipf Slope", value=res2$P[,1]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value)
-ggdata = rbind(ggdata,data.frame(item1="Entropy Slope Variance", value=res2$P[,2]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value))
-ggdata = rbind(ggdata,data.frame(item1="Loss", value=res2$P[,3]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value))
-ggdata = rbind(ggdata,data.frame(item1="Validation Loss", value=res2$P[,4]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value))
-ggdata <- ggdata %>%
-  mutate(min=pmin(item1, item2)) %>%
-  mutate(max=pmax(item1, item2)) %>%
-  mutate(label=paste0(min," ",max)) %>%
-  arrange(label, item1) %>%
-  group_by(label) %>%
-  summarise(item1=first(item1),
-            item2=first(item2),
-            value=first(value)) %>%
-  mutate(`Significance`=ifelse(value<0.05,"p < 0.05", "p >= 0.05"))
-
-# make pretty plot
-plot2 <- ggplot(ggdata, aes(x = reorder(item2,desc(item2)), y = reorder(item1,desc(item2)), fill=Significance, label=round(value,6))) +
-  geom_tile(show.legend = TRUE, colour = "#000000", size=0.5) +
-  theme_bw() +
-  theme(legend.position="none",
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ggtitle("p-value") +
-  scale_fill_manual(name=" ",
-                    values = c("p < 0.05"="#02b848")) +  
-  labs(x=" ", y=" ") +
-  geom_text(size=3) 
-plot2
-
-
-
-# format correlation for ggplot
-item1 = c("Zipf Slope","Entropy Slope Variance","Loss","Validation Loss")
-ggdata = data.frame(item1="Zipf Slope", value=res2$r[,1]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value)
-ggdata = rbind(ggdata,data.frame(item1="Entropy Slope Variance", value=res2$r[,2]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value))
-ggdata = rbind(ggdata,data.frame(item1="Loss", value=res2$r[,3]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value))
-ggdata = rbind(ggdata,data.frame(item1="Validation Loss", value=res2$r[,4]) %>% tibble::rownames_to_column("item2") %>% select(item1, item2, value))
-ggdata <- ggdata %>%
-  mutate(min=pmin(item1, item2)) %>%
-  mutate(max=pmax(item1, item2)) %>%
-  mutate(label=paste0(min," ",max)) %>%
-  arrange(label, item1) %>%
-  group_by(label) %>%
-  summarise(item1=first(item1),
-            item2=first(item2),
-            value=first(value)) %>%
-  mutate(`Significance`=ifelse(value<0.05,"p < 0.05", "p >= 0.05"))
-
-
-
-# make pretty plot
-plot1 <- ggplot(ggdata, aes(x = reorder(item2,desc(item2)), y = reorder(item1,desc(item2)), fill=value, label=round(value,4))) +
-  geom_tile(show.legend = TRUE, colour = "#000000", size=0.5) +
-  theme_bw() +
-  theme(legend.position="none",
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  ggtitle("Pearson Correlation Coefficient") +
-  # scale_fill_manual(name=" ",
-  #                   values = c("p < 0.05"="#02b848")) +  
-  scale_fill_gradientn(colours=c("red","white","lightblue"),values=rescale(c(-1,0,1)))+ 
-  labs(x=" ", y=" ") +
-  geom_text(size=3) 
-plot1
-
-grid.arrange(plot1,plot2,widths = c(3, 3), nrow=1)
-
-
-
-# look at this correlation closer
 # map colors
-map_colors2 <- c(
-  "LSTM-1000"="#B4DE2C",
-  "LSTM-100"="#6DCD59",
-  "LSTM-50"="#35B779",
-  "LSTM-40"="#1F9E89",
-  "LSTM-30"="#26828E",
-  "LSTM-20"="#31688E",
-  "LSTM-10"="#3E4A89",
-  "LSTM-1"="#482878"
+map_colors_summary <- c(
+  "Call of the Wild"="#619CFF",
+  "LSTM-Overfit"="#F8766D",
+  "LSTM-1000"="#fc9803",
+  "LSTM-1"="#fc9803",  
+  "GPT-NEO-1.3B"="#88d190",
+  "GPT-NEO-2.7B"="#88d190",
+  "GPT-J-6B"="#88d190",
+  "Don Quijote"="#619CFF",
+  "Lorem Ipsum"="#F8766D",  
+  "Moby Dick"="#619CFF",
+  "Tale of two Cities"="#619CFF",  
+  "Tom Sawyer"="#619CFF"
 )
-plot1 <- ggplot(combined_results, aes(x=`Loss`, size=`Loss`, y=`Entropy Slope Variance`, color=source)) +
-  geom_point() +
-  scale_colour_manual(name=" ",
-                    values = map_colors2) +
-  theme_bw() +
-  theme(legend.position = "none")
-plot1
+cond1 = run_condition1_analysis(my_data, 0, map_colors_summary)
 
-plot2 <- ggplot(combined_results, aes(x=`Validation Loss`, size=`Validation Loss`, y=`Entropy Slope Variance`, color=source)) +
-  geom_point() +
+plot_special <- ggplot(max_order_entropy, aes(x=reorder(source,-max_n), y=max_n, fill=source, label=max_n)) +
+  geom_bar(stat="identity", color="black") +
+  scale_fill_manual(name=" ",
+                    values = map_colors_summary) +
+  ggtitle("Maximum nth-Order Entropy") +
+  labs(x=" ", y="Max n") +
   theme_bw() +
-  scale_colour_manual(name=" ",
-                      values = map_colors2)  
-plot2
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.position = "none") +
+  geom_text(hjust=2, size=3) +
+  coord_flip()
+plot_special
 
-grid.arrange(plot1,plot2,widths = c(2, 3), nrow=1)
+#########################################################################
+# Condition #3
+plot2 <- plot_condition2(entropy_data %>% filter(n < 6),map_colors_summary, TRUE)
+cond3 = run_condition3_analysis(entropy_data,map_colors_summary)
+grid.arrange(plot2,cond3[[3]],widths = c(2, 3), nrow=1)
+
+grid.arrange(cond1[[2]] + ggtitle("Condition #1") + labs(x=" ", y="Zipf Slope"),
+             plot_special + ggtitle("Condition #2"),
+             cond3[[3]] + ggtitle("Condition #3"), nrow=1)
+

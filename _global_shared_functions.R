@@ -242,7 +242,7 @@ run_condition1_analysis <- function(data, max_rank, color_key) {
     geom_abline(slope=-1,intercept=avg_intercepts, color="black", lty=2) +
     theme_bw() +
     theme(legend.position="none") +
-    facet_wrap(vars(source)) +
+    facet_wrap(vars(source), ncol=3) +
     scale_colour_manual(name=" ",
                         values = color_key)
   
